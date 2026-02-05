@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "998447083751",
+    "project_id": "minoxiplan",
+    "storage_bucket": "minoxiplan.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:998447083751:android:1c724b88620c307a90f242",
+        "android_client_info": {
+          "package_name": "com.example.minox_plan"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDA-4Y8s3fUYV04ds8mwcE5ehZwd-izPVk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

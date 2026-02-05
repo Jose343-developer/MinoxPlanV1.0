@@ -1,0 +1,33 @@
+name: minox_plan
+description: "A new Flutter project."
+publish_to: 'none' 
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.10.7
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+  provider: ^6.1.5+1
+  firebase_core: ^4.4.0
+  cloud_firestore: ^6.1.2
+  firebase_auth: ^6.1.4
+  google_generative_ai: ^0.4.7
+  flutter_dotenv: ^6.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+# SECCIÓN DE FLUTTER (SOLO DEBE HABER UNA)
+flutter:
+  uses-material-design: true
+
+  # Aquí registramos el archivo secreto
+  assets:
+    - .env
