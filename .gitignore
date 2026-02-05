@@ -46,3 +46,7 @@ app.*.map.json
 
 
 .env
+# Configuración de Firebase (Mac/iOS)
+GoogleService-Info.plist
+ios/Runner/GoogleService-Info.plist
+macos/Runner/GoogleService-Info.plist
