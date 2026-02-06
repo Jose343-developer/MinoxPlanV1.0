@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../services/ai_service.dart'; // Importamos el servicio de IA
+import '../services/ai_service.dart';
+import '../services/notification_service.dart';
 import 'home_screen.dart';
 
 class OnboardingScreen extends StatefulWidget {
@@ -18,11 +20,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   // --- VARIABLES DE RESPUESTA ---
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _ageController = TextEditingController();
-  
-  bool? _usesMinoxidil; 
-  int _minoxFrequency = 1; 
+
+  bool? _usesMinoxidil;
+  int _minoxFrequency = 1;
   List<String> _selectedProducts = [];
-  
+
   // VARIABLES DE TIEMPO (Hora de Despertar y Dormir)
   TimeOfDay _wakeTime = const TimeOfDay(hour: 7, minute: 0);
   TimeOfDay _sleepTime = const TimeOfDay(hour: 23, minute: 0);
@@ -47,7 +49,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const Center(child: CircularProgressIndicator(color: Color(0xFFD4AF37))),
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(color: Color(0xFFD4AF37)),
+      ),
     );
 
     try {
@@ -60,6 +64,15 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         usesMinoxidil: _usesMinoxidil ?? false,
         products: _selectedProducts,
       );
+
+      // 3. PARSEAR JSON Y PROGRAMAR NOTIFICACIONES 🔔
+      try {
+        List<dynamic> routineSteps = jsonDecode(aiRoutine);
+        await NotificationService().scheduleRoutine(routineSteps);
+      } catch (e) {
+        debugPrint("Error al parsear la rutina JSON: $e");
+        // Si falla el parseo, no afectamos el guardado, pero no habrá notificaciones
+      }
 
       // 3. GUARDAR TODO EN FIREBASE
       await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
@@ -78,12 +91,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       if (mounted) {
         Navigator.pop(context); // Quita el círculo
         Navigator.of(context).pushReplacement(
-           MaterialPageRoute(builder: (context) => const HomeScreen()), 
+          MaterialPageRoute(builder: (context) => const HomeScreen()),
         );
       }
     } catch (e) {
       if (mounted) Navigator.pop(context); // Quita el círculo si falla
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Error: $e")));
     }
   }
 
@@ -100,7 +115,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       backgroundColor: Colors.black,
       appBar: AppBar(
         backgroundColor: Colors.black,
-        title: Text("Paso ${_currentPage + 1} de 4", style: const TextStyle(color: Colors.white)),
+        title: Text(
+          "Paso ${_currentPage + 1} de 4",
+          style: const TextStyle(color: Colors.white),
+        ),
         centerTitle: true,
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(4),
@@ -135,19 +153,27 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           TextField(
             controller: _nameController,
             style: const TextStyle(color: Colors.white),
-            decoration: const InputDecoration(labelText: "Tu Nombre o Apodo", prefixIcon: Icon(Icons.person, color: Color(0xFFD4AF37))),
+            decoration: const InputDecoration(
+              labelText: "Tu Nombre o Apodo",
+              prefixIcon: Icon(Icons.person, color: Color(0xFFD4AF37)),
+            ),
           ),
           const SizedBox(height: 20),
           TextField(
             controller: _ageController,
             keyboardType: TextInputType.number,
             style: const TextStyle(color: Colors.white),
-            decoration: const InputDecoration(labelText: "Tu Edad", prefixIcon: Icon(Icons.cake, color: Color(0xFFD4AF37))),
+            decoration: const InputDecoration(
+              labelText: "Tu Edad",
+              prefixIcon: Icon(Icons.cake, color: Color(0xFFD4AF37)),
+            ),
           ),
           const Spacer(),
-          _nextButton(onPressed: () {
-            if (_nameController.text.isNotEmpty) _nextPage();
-          }),
+          _nextButton(
+            onPressed: () {
+              if (_nameController.text.isNotEmpty) _nextPage();
+            },
+          ),
         ],
       ),
     );
@@ -174,7 +200,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           ),
           if (_usesMinoxidil == true) ...[
             const SizedBox(height: 30),
-            const Text("¿Frecuencia diaria?", style: TextStyle(color: Colors.grey)),
+            const Text(
+              "¿Frecuencia diaria?",
+              style: TextStyle(color: Colors.grey),
+            ),
             const SizedBox(height: 10),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -183,12 +212,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 const SizedBox(width: 20),
                 _frequencyButton(2),
               ],
-            )
+            ),
           ],
           const Spacer(),
-          _nextButton(onPressed: () {
-            if (_usesMinoxidil != null) _nextPage();
-          }),
+          _nextButton(
+            onPressed: () {
+              if (_usesMinoxidil != null) _nextPage();
+            },
+          ),
         ],
       ),
     );
@@ -204,7 +235,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           Expanded(
             child: GridView.builder(
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2, 
+                crossAxisCount: 2,
                 childAspectRatio: 2.5,
                 crossAxisSpacing: 10,
                 mainAxisSpacing: 10,
@@ -216,22 +247,39 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 return GestureDetector(
                   onTap: () {
                     setState(() {
-                      if (isSelected) _selectedProducts.remove(product['name']);
-                      else _selectedProducts.add(product['name']);
+                      if (isSelected)
+                        _selectedProducts.remove(product['name']);
+                      else
+                        _selectedProducts.add(product['name']);
                     });
                   },
                   child: Container(
                     decoration: BoxDecoration(
-                      color: isSelected ? const Color(0xFFD4AF37) : Colors.grey[900],
+                      color: isSelected
+                          ? const Color(0xFFD4AF37)
+                          : Colors.grey[900],
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: isSelected ? const Color(0xFFD4AF37) : Colors.grey),
+                      border: Border.all(
+                        color: isSelected
+                            ? const Color(0xFFD4AF37)
+                            : Colors.grey,
+                      ),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(product['icon'], color: isSelected ? Colors.black : Colors.white),
+                        Icon(
+                          product['icon'],
+                          color: isSelected ? Colors.black : Colors.white,
+                        ),
                         const SizedBox(width: 8),
-                        Text(product['name'], style: TextStyle(color: isSelected ? Colors.black : Colors.white, fontWeight: FontWeight.bold)),
+                        Text(
+                          product['name'],
+                          style: TextStyle(
+                            color: isSelected ? Colors.black : Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -259,7 +307,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             time: _wakeTime,
             icon: Icons.wb_sunny_outlined,
             onTap: () async {
-              final TimeOfDay? picked = await showTimePicker(context: context, initialTime: _wakeTime);
+              final TimeOfDay? picked = await showTimePicker(
+                context: context,
+                initialTime: _wakeTime,
+              );
               if (picked != null) setState(() => _wakeTime = picked);
             },
           ),
@@ -270,7 +321,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             time: _sleepTime,
             icon: Icons.nights_stay_outlined,
             onTap: () async {
-              final TimeOfDay? picked = await showTimePicker(context: context, initialTime: _sleepTime);
+              final TimeOfDay? picked = await showTimePicker(
+                context: context,
+                initialTime: _sleepTime,
+              );
               if (picked != null) setState(() => _sleepTime = picked);
             },
           ),
@@ -281,7 +335,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               backgroundColor: const Color(0xFFD4AF37),
               minimumSize: const Size(double.infinity, 50),
             ),
-            child: const Text("CREAR RUTINA INTELIGENTE 🤖", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+            child: const Text(
+              "CREAR RUTINA INTELIGENTE 🤖",
+              style: TextStyle(
+                color: Colors.black,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
       ),
@@ -289,14 +349,28 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 
   // --- WIDGETS DE ESTILO ---
-  Widget _baseCard({required String title, required String subtitle, required Widget child}) {
+  Widget _baseCard({
+    required String title,
+    required String subtitle,
+    required Widget child,
+  }) {
     return Padding(
       padding: const EdgeInsets.all(24.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white)),
-          Text(subtitle, style: const TextStyle(fontSize: 16, color: Colors.grey)),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+          Text(
+            subtitle,
+            style: const TextStyle(fontSize: 16, color: Colors.grey),
+          ),
           const SizedBox(height: 20),
           Expanded(child: child),
         ],
@@ -315,21 +389,35 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     );
   }
 
-  Widget _selectionTile({required String text, required bool isSelected, required VoidCallback onTap}) {
+  Widget _selectionTile({
+    required String text,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFFD4AF37).withOpacity(0.2) : Colors.grey[900],
-          border: Border.all(color: isSelected ? const Color(0xFFD4AF37) : Colors.transparent),
+          color: isSelected
+              ? const Color(0xFFD4AF37).withOpacity(0.2)
+              : Colors.grey[900],
+          border: Border.all(
+            color: isSelected ? const Color(0xFFD4AF37) : Colors.transparent,
+          ),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
           children: [
-            Icon(isSelected ? Icons.check_circle : Icons.circle_outlined, color: isSelected ? const Color(0xFFD4AF37) : Colors.grey),
+            Icon(
+              isSelected ? Icons.check_circle : Icons.circle_outlined,
+              color: isSelected ? const Color(0xFFD4AF37) : Colors.grey,
+            ),
             const SizedBox(width: 12),
-            Text(text, style: const TextStyle(color: Colors.white, fontSize: 16)),
+            Text(
+              text,
+              style: const TextStyle(color: Colors.white, fontSize: 16),
+            ),
           ],
         ),
       ),
@@ -346,12 +434,23 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           color: isSelected ? const Color(0xFFD4AF37) : Colors.grey[900],
           borderRadius: BorderRadius.circular(8),
         ),
-        child: Text("$times vez", style: TextStyle(color: isSelected ? Colors.black : Colors.white, fontWeight: FontWeight.bold)),
+        child: Text(
+          "$times vez",
+          style: TextStyle(
+            color: isSelected ? Colors.black : Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
       ),
     );
   }
 
-  Widget _timeSelector({required String title, required TimeOfDay time, required IconData icon, required VoidCallback onTap}) {
+  Widget _timeSelector({
+    required String title,
+    required TimeOfDay time,
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -368,10 +467,17 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(color: Colors.grey, fontSize: 14)),
+                Text(
+                  title,
+                  style: const TextStyle(color: Colors.grey, fontSize: 14),
+                ),
                 Text(
                   "${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}",
-                  style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ],
             ),
